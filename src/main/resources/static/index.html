@@ -35,7 +35,7 @@
                             <td>
                                 <template v-for="(download, dindex) in item.downloads">
                                     <div class="progress" v-bind:style="{ marginTop: dindex == 0 ? 0 : '5px' }">
-                                        <div class="progress-bar" role="progressbar" v-bind:style="{ width: download.progress + '%' }" :aria-valuenow="download.progress" aria-valuemin="0" aria-valuemax="100">{{ download.ip }}</div>
+                                        <div v-bind:class="{ 'progress-bar': true, 'bg-danger': download.failed }" role="progressbar" v-bind:style="{ width: download.progress + '%' }" :aria-valuenow="download.progress" aria-valuemin="0" aria-valuemax="100">{{ download.ip }}</div>
                                     </div>
                                 </template>
                             </td>

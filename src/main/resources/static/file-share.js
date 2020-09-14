@@ -47,7 +47,8 @@ var app = new Vue({
                 let jsonResp = JSON.parse(response.body);
                 let download = {
                     ip: jsonResp.ip,
-                    progress: 0
+                    progress: 0,
+                    failed: false
                 };
 
                 item.downloads.push(download);
@@ -64,8 +65,8 @@ var app = new Vue({
                 });
 
                 // request finished event
-                request.addEventListener('load', e => {
-
+                request.addEventListener('error', e => {
+                   download.failed = true;
                 });
 
                 // send POST request to server

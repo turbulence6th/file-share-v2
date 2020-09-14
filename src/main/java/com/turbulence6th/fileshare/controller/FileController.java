@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,9 +28,6 @@ import java.util.concurrent.CyclicBarrier;
 public class FileController {
 
     private final Map<String, FileShareWrapper> shareMap = new HashMap<>();
-
-    @Autowired
-    private SimpUserRegistry simpUserRegistry;
 
     @Autowired
     private SimpMessagingTemplate template;
@@ -49,7 +47,20 @@ public class FileController {
 
     @RequestMapping(path = "/unshare", method = RequestMethod.POST)
     public void unshare(@RequestBody UnshareRequestDTO request) {
+        FileShareWrapper fileShareWrapper = shareMap.get(request.getShareHash());
+        for (FileStreamWrapper fileStreamWrapper : fileShareWrapper.getStreamMap().values()) {
+            forceClose(fileStreamWrapper.getInputStream());
+            forceClose(fileStreamWrapper.getOutputStream());
+        }
         shareMap.remove(request.getShareHash());
+    }
+
+    private void forceClose(Closeable closeable) {
+        try {
+            closeable.close();
+        } catch (Exception ignored) {
+
+        }
     }
 
     @RequestMapping(path = "/upload/{shareHash}/{streamHash}", method = RequestMethod.POST)
@@ -62,7 +73,9 @@ public class FileController {
                 FileItemStream item = iterator.next();
 
                 if (!item.isFormField()) {
-                    flow(item.openStream(), fileStreamWrapper.getOutputStream());
+                    InputStream inputStream = item.openStream();
+                    fileStreamWrapper.setInputStream(inputStream);
+                    flow(inputStream, fileStreamWrapper.getOutputStream());
                 }
             }
         } finally {

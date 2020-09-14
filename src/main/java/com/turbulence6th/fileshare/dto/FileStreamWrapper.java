@@ -14,6 +14,6 @@ import java.util.concurrent.CyclicBarrier;
 public class FileStreamWrapper {
 
     private CyclicBarrier barrier;
-    private OutputStream outputStream;
     private InputStream inputStream;
+    private OutputStream outputStream;
 }
