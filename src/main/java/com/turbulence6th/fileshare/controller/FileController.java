@@ -7,7 +7,6 @@ import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -21,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 
 @RestController
@@ -51,6 +51,10 @@ public class FileController {
         for (FileStreamWrapper fileStreamWrapper : fileShareWrapper.getStreamMap().values()) {
             forceClose(fileStreamWrapper.getInputStream());
             forceClose(fileStreamWrapper.getOutputStream());
+            fileStreamWrapper.setStatus(-1);
+            if (fileStreamWrapper.getLatch() != null) {
+                fileStreamWrapper.getLatch().countDown();
+            }
         }
         shareMap.remove(request.getShareHash());
     }
@@ -76,14 +80,13 @@ public class FileController {
                     InputStream inputStream = item.openStream();
                     fileStreamWrapper.setInputStream(inputStream);
                     flow(inputStream, fileStreamWrapper.getOutputStream());
+                    fileStreamWrapper.setStatus(1);
                 }
             }
         } finally {
-            Optional<CyclicBarrier> cyclicBarrier = Optional.ofNullable(fileStreamWrapper)
-                    .map(FileStreamWrapper::getBarrier);
-            if (cyclicBarrier.isPresent()) {
-                cyclicBarrier.get().await();
-            }
+            Optional.ofNullable(fileStreamWrapper)
+                    .map(FileStreamWrapper::getLatch)
+                    .ifPresent(CountDownLatch::countDown);
         }
     }
 
@@ -96,10 +99,11 @@ public class FileController {
 
         String streamHash = UUID.randomUUID().toString();
 
-        CyclicBarrier barrier = new CyclicBarrier(2);
+        CountDownLatch latch = new CountDownLatch(1);
         FileStreamWrapper fileStreamWrapper = FileStreamWrapper.builder()
-                .barrier(barrier)
+                .latch(latch)
                 .outputStream(response.getOutputStream())
+                .status(0)
                 .build();
         fileShareWrapper.getStreamMap().put(streamHash, fileStreamWrapper);
 
@@ -112,7 +116,7 @@ public class FileController {
                 .ip(ip)
                 .build());
 
-        barrier.await();
+        latch.await();
 
         fileShareWrapper.getStreamMap().remove(streamHash);
     }

@@ -4,7 +4,7 @@ import lombok.*;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.CountDownLatch;
 
 @Getter
 @Setter
@@ -13,7 +13,8 @@ import java.util.concurrent.CyclicBarrier;
 @Builder
 public class FileStreamWrapper {
 
-    private CyclicBarrier barrier;
+    private CountDownLatch latch;
     private InputStream inputStream;
     private OutputStream outputStream;
+    private int status;
 }
