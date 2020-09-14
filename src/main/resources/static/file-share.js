@@ -48,7 +48,7 @@ var app = new Vue({
                 let download = {
                     ip: jsonResp.ip,
                     progress: 0,
-                    failed: false
+                    status: 'progress'
                 };
 
                 item.downloads.push(download);
@@ -64,9 +64,12 @@ var app = new Vue({
                    download.progress = (e.loaded / e.total) * 100;
                 });
 
-                // request finished event
+                request.addEventListener('load', e => {
+                   download.status = 'success';
+                });
+
                 request.addEventListener('error', e => {
-                   download.failed = true;
+                   download.status = 'failed';
                 });
 
                 // send POST request to server
