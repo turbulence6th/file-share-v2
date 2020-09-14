@@ -11,7 +11,7 @@
     <div class="container-fluid">
         <div id="app">
             <div class="files color">
-                <input type="file" v-on:change="x => upload(x)">
+                <input type="file" v-on:change="upload" ref="fileUpload">
             </div>
 
             <div v-if="sharedFiles.length !== 0">
@@ -21,19 +21,28 @@
                             <th scope="col" style="width: 3%">#</th>
                             <th scope="col" style="width: 17%">Shared File</th>
                             <th scope="col" style="width: 10%">Size</th>
-                            <th scope="col" style="width: 50%">Link</th>
-                            <th scope="col" style="width: 10%">Whatsapp</th>
-                            <th scope="col" style="width: 10%">Actions</th>
+                            <th scope="col" style="width: 35%">Link</th>
+                            <th scope="col" style="width: 20%">Downloads</th>
+                            <th scope="col" style="width: 15%">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="item in sharedFiles" :key="item.hash">
-                            <th scope="row">1</th>
+                        <tr v-for="(item, index) in sharedFiles" :key="item.hash">
+                            <th scope="row">{{ index + 1 }}</th>
                             <td>{{ item.filename }}</td>
-                            <td>{{ item.size }}</td>
-                            <td><input class="form-control" :value="location + '/file/download/' + item.hash" disabled></td>
-                            <td>Whatsapp</td>
-                            <td>Actions</td>
+                            <td>{{ size(item.blob) }}</td>
+                            <td><input :id="'link-' + item.hash" class="form-control" :value="location + '/file/download/' + item.hash" readonly></td>
+                            <td>
+                                <template v-for="(download, dindex) in item.downloads">
+                                    <div class="progress" v-bind:style="{ marginTop: dindex == 0 ? 0 : '5px' }">
+                                        <div class="progress-bar" role="progressbar" v-bind:style="{ width: download.progress + '%' }" :aria-valuenow="download.progress" aria-valuemin="0" aria-valuemax="100">{{ download.ip }}</div>
+                                    </div>
+                                </template>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-info" v-on:click="copy(item)">Copy</button>
+                                <button type="button" class="btn btn-danger" v-on:click="remove(item)">Delete</button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

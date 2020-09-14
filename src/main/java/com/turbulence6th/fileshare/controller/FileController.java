@@ -6,13 +6,7 @@ import org.apache.tomcat.util.http.fileupload.FileItemStream;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.messaging.simp.user.SimpSession;
-import org.springframework.messaging.simp.user.SimpSubscription;
-import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -60,21 +55,27 @@ public class FileController {
     @RequestMapping(path = "/upload/{shareHash}/{streamHash}", method = RequestMethod.POST)
     public void upload(@PathVariable String shareHash, @PathVariable String streamHash, HttpServletRequest request) throws IOException, FileUploadException, BrokenBarrierException, InterruptedException {
         FileStreamWrapper fileStreamWrapper = shareMap.get(shareHash).getStreamMap().get(streamHash);
+        try {
+            ServletFileUpload upload = new ServletFileUpload();
+            FileItemIterator iterator = upload.getItemIterator(request);
+            if (iterator.hasNext()) {
+                FileItemStream item = iterator.next();
 
-        ServletFileUpload upload = new ServletFileUpload();
-        FileItemIterator iterator = upload.getItemIterator(request);
-        if (iterator.hasNext()) {
-            FileItemStream item = iterator.next();
-
-            if (!item.isFormField()) {
-                flow(item.openStream(), fileStreamWrapper.getOutputStream());
-                fileStreamWrapper.getBarrier().await();
+                if (!item.isFormField()) {
+                    flow(item.openStream(), fileStreamWrapper.getOutputStream());
+                }
+            }
+        } finally {
+            Optional<CyclicBarrier> cyclicBarrier = Optional.ofNullable(fileStreamWrapper)
+                    .map(FileStreamWrapper::getBarrier);
+            if (cyclicBarrier.isPresent()) {
+                cyclicBarrier.get().await();
             }
         }
     }
 
     @RequestMapping(path = "/download/{shareHash}", method = RequestMethod.GET)
-    public void download(@PathVariable String shareHash, HttpServletResponse response) throws IOException, BrokenBarrierException, InterruptedException {
+    public void download(@PathVariable String shareHash, HttpServletRequest request, HttpServletResponse response) throws IOException, BrokenBarrierException, InterruptedException {
         FileShareWrapper fileShareWrapper = shareMap.get(shareHash);
 
         response.setHeader("Content-Disposition", "attachment; filename=\"" + fileShareWrapper.getFilename() + "\"");
@@ -89,9 +90,13 @@ public class FileController {
                 .build();
         fileShareWrapper.getStreamMap().put(streamHash, fileStreamWrapper);
 
+        String ip = Optional.ofNullable(request.getHeader("X-Forwarded-For"))
+                .orElse(request.getRemoteHost());
+
         template.convertAndSend("/topic/" + shareHash, SocketShareDTO.builder()
                 .shareHash(shareHash)
                 .streamHash(streamHash)
+                .ip(ip)
                 .build());
 
         barrier.await();

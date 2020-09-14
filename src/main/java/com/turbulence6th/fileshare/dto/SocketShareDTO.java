@@ -11,4 +11,5 @@ public class SocketShareDTO {
 
     private String shareHash;
     private String streamHash;
+    private String ip;
 }
