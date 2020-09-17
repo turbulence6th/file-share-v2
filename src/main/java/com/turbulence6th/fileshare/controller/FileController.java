@@ -5,7 +5,6 @@ import org.apache.tomcat.util.http.fileupload.FileItemIterator;
 import org.apache.tomcat.util.http.fileupload.FileItemStream;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,16 +20,19 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.CyclicBarrier;
 
 @RestController
 @RequestMapping("/file")
 public class FileController {
 
-    private final Map<String, FileShareWrapper> shareMap = new HashMap<>();
+    private final Map<String, FileShareWrapper> shareMap;
 
-    @Autowired
-    private SimpMessagingTemplate template;
+    private final SimpMessagingTemplate template;
+
+    public FileController(Map<String, FileShareWrapper> shareMap, SimpMessagingTemplate template) {
+        this.shareMap = shareMap;
+        this.template = template;
+    }
 
     @RequestMapping(path = "/share", method = RequestMethod.POST)
     public ShareResponseDTO share(@RequestBody ShareRequestDTO request) {
@@ -71,8 +73,7 @@ public class FileController {
     public void upload(@PathVariable String shareHash, @PathVariable String streamHash, HttpServletRequest request) throws IOException, FileUploadException, BrokenBarrierException, InterruptedException {
         FileStreamWrapper fileStreamWrapper = shareMap.get(shareHash).getStreamMap().get(streamHash);
         try {
-            ServletFileUpload upload = new ServletFileUpload();
-            FileItemIterator iterator = upload.getItemIterator(request);
+            FileItemIterator iterator = getItemIterator(request);
             if (iterator.hasNext()) {
                 FileItemStream item = iterator.next();
 
@@ -90,8 +91,12 @@ public class FileController {
         }
     }
 
+    FileItemIterator getItemIterator(HttpServletRequest request) throws FileUploadException, IOException {
+        return new ServletFileUpload().getItemIterator(request);
+    }
+
     @RequestMapping(path = "/download/{shareHash}", method = RequestMethod.GET)
-    public void download(@PathVariable String shareHash, HttpServletRequest request, HttpServletResponse response) throws IOException, BrokenBarrierException, InterruptedException {
+    public void download(@PathVariable String shareHash, HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException {
         FileShareWrapper fileShareWrapper = shareMap.get(shareHash);
 
         response.setHeader("Content-Disposition", "attachment; filename=\"" + fileShareWrapper.getFilename() + "\"");
@@ -99,7 +104,7 @@ public class FileController {
 
         String streamHash = UUID.randomUUID().toString();
 
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch latch = getLatch();
         FileStreamWrapper fileStreamWrapper = FileStreamWrapper.builder()
                 .latch(latch)
                 .outputStream(response.getOutputStream())
@@ -119,6 +124,10 @@ public class FileController {
         latch.await();
 
         fileShareWrapper.getStreamMap().remove(streamHash);
+    }
+
+    CountDownLatch getLatch() {
+        return new CountDownLatch(1);
     }
 
     private void flow(InputStream is, OutputStream os) throws IOException {

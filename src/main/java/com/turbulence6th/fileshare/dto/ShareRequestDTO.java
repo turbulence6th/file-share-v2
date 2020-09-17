@@ -4,6 +4,9 @@ import lombok.*;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ShareRequestDTO {
 
     private String filename;
