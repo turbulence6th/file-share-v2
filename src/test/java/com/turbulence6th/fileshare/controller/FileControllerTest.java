@@ -1,6 +1,7 @@
 package com.turbulence6th.fileshare.controller;
 
 import com.turbulence6th.fileshare.dto.*;
+import com.turbulence6th.fileshare.service.HashService;
 import org.apache.tomcat.util.http.fileupload.FileItemIterator;
 import org.apache.tomcat.util.http.fileupload.FileItemStream;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
@@ -8,8 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -33,12 +32,14 @@ public class FileControllerTest {
     private Map<String, FileShareWrapper> shareMap;
     private SimpMessagingTemplate template;
     private FileController fileController;
+    private HashService hashService;
 
     @BeforeEach
     public void beforeEach() {
        shareMap = new HashMap<>();
        template = mock(SimpMessagingTemplate.class);
-       fileController = spy(new FileController(shareMap, template));
+       hashService = new HashService();
+       fileController = spy(new FileController(shareMap, template, hashService));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.turbulence6th.fileshare.controller;
 
 import com.turbulence6th.fileshare.dto.*;
+import com.turbulence6th.fileshare.service.HashService;
 import org.apache.tomcat.util.http.fileupload.FileItemIterator;
 import org.apache.tomcat.util.http.fileupload.FileItemStream;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
@@ -17,7 +18,6 @@ import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
 
@@ -26,17 +26,23 @@ import java.util.concurrent.CountDownLatch;
 public class FileController {
 
     private final Map<String, FileShareWrapper> shareMap;
-
     private final SimpMessagingTemplate template;
+    private final HashService hashService;
 
-    public FileController(Map<String, FileShareWrapper> shareMap, SimpMessagingTemplate template) {
+    public FileController(Map<String, FileShareWrapper> shareMap, SimpMessagingTemplate template, HashService hashService) {
         this.shareMap = shareMap;
         this.template = template;
+        this.hashService = hashService;
     }
 
     @RequestMapping(path = "/share", method = RequestMethod.POST)
     public ShareResponseDTO share(@RequestBody ShareRequestDTO request) {
-        String shareHash = UUID.randomUUID().toString();
+
+        String shareHash;
+        do {
+            shareHash = hashService.generateHash();
+        } while (shareMap.containsKey(shareHash));
+
         shareMap.put(shareHash, FileShareWrapper.builder()
                 .filename(request.getFilename())
                 .size(request.getSize())
@@ -102,7 +108,10 @@ public class FileController {
         response.setHeader("Content-Disposition", "attachment; filename=\"" + fileShareWrapper.getFilename() + "\"");
         response.setHeader("Content-Length", fileShareWrapper.getSize().toString());
 
-        String streamHash = UUID.randomUUID().toString();
+        String streamHash;
+        do {
+            streamHash = hashService.generateHash();
+        } while (fileShareWrapper.getStreamMap().containsKey(streamHash));
 
         CountDownLatch latch = getLatch();
         FileStreamWrapper fileStreamWrapper = FileStreamWrapper.builder()
