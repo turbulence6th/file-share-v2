@@ -31,7 +31,7 @@
                             <th scope="row">{{ index + 1 }}</th>
                             <td>{{ item.filename }}</td>
                             <td>{{ size(item.blob) }}</td>
-                            <td><input :id="'link-' + item.hash" class="form-control" :value="location + '/file/download/' + item.hash" readonly></td>
+                            <td><input :id="'link-' + item.hash" class="form-control" :value="location + 'file/download/' + item.hash" readonly></td>
                             <td>
                                 <template v-for="(download, dindex) in item.downloads">
                                     <div class="progress" v-bind:style="{ marginTop: dindex == 0 ? 0 : '5px' }">
