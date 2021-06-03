@@ -3,10 +3,20 @@ var app = new Vue({
   data: {
     sharedFiles:[],
     stompClient: null,
-    location: document.location
+    location: document.location,
+    qrcode: null,
   },
   beforeMount() {
     this.connect();
+  },
+  mounted() {
+    this.qrcode = new QRCode('qrcode', {
+      width: 250,
+      height: 250,
+      colorDark : "#000000",
+      colorLight : "#FFFFFF",
+      correctLevel : QRCode.CorrectLevel.M
+    });
   },
   methods: {
     connect() {
@@ -129,6 +139,10 @@ var app = new Vue({
         if(size < 1024) {
             return size.toFixed(1) + " TB";
         }
+    },
+    showQr(item) {
+        this.qrcode.clear();
+        this.qrcode.makeCode(this.location  + 'file/download/' + item.hash);
     }
   }
 });
